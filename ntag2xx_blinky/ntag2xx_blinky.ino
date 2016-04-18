@@ -91,7 +91,7 @@ int debounceThreshold = 200;
 int appState = STATE_INIT;
 
 void setup(void) {
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);
   #ifndef ESP8266
     while (!Serial); // for Leonardo/Micro/Zero
@@ -121,9 +121,17 @@ void loop(void)
   {
     state_entry_waiting_for_button();
   }
-  // Get current button state.
+  // Get current button state & light the LED when pressed
   unsigned long ts = millis();
-  digitalWrite(LED_PIN, btnState == HIGH ? LOW : HIGH);
+  if (appState == STATE_WAITING_FOR_TAG)
+  {
+    digitalWrite(LED_PIN,  HIGH);
+  }
+  else
+  {
+    digitalWrite(LED_PIN,  LOW);
+  }
+
   if (ts - lastButtonRead >= debounceThreshold)
   {
     lastButtonRead = ts;
@@ -164,6 +172,8 @@ void state_entry_waiting_for_tag()
 
   Serial.println("Place your NDEF formatted Mifare Classic card");
   Serial.println("or Ultralite tag on the reader to update the NDEF record");
+
+  digitalWrite(LED_PIN,  HIGH);
 
   uint8_t success;
   uint8_t uid[] = { 0, 0, 0, 0, 0, 0, 0 };  // Buffer to store the returned UID
@@ -216,6 +226,7 @@ void state_entry_waiting_for_tag()
       if (!success)
       {
         Serial.println("Unable to read the Capability Container (page 3)");
+        state_entry_waiting_for_button();
         return;
       }
       else
@@ -248,6 +259,7 @@ void state_entry_waiting_for_tag()
             if (!success)
             {
               Serial.println(" ERROR!");
+              state_entry_waiting_for_button();
               return;
             }
           }
