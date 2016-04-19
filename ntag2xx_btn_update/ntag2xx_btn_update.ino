@@ -26,18 +26,34 @@
 #include <Adafruit_NeoPixel.h>
 
 // If using the breakout with SPI, define the pins for SPI communication.
-#define PN532_SCK  (2)
-#define PN532_MOSI (3)
-#define PN532_SS   (4)
-#define PN532_MISO (5)
+#ifdef ESP8266
+// If using the breakout with SPI on ESP8266, define the pins for SPI communication.
+// Name  (PN532)  | ESP8266   | Color   | Arduino
+// SCK (CLK)        GPIO14      orange    2
+// MOSI             GPIO13      yellow    3
+// MISO             GPIO12      blue      5
+// SSEL             GPIO2       green     4
+# define PN532_SCK  (14)
+# define PN532_MOSI (13)
+# define PN532_SS   (2)
+# define PN532_MISO (12)
+
+// SPI for Arduino
+#else
+# define PN532_SCK  (2)
+# define PN532_MOSI (3)
+# define PN532_SS   (4)
+# define PN532_MISO (5)
+
+#endif
 
 // If using the breakout or shield with I2C, define just the pins connected
 // to the IRQ and reset lines.  Use the values below (2, 3) for the shield!
 #define PN532_IRQ   (2)
 #define PN532_RESET (3)  // Not connected by default on the NFC Shield
 
-#define BUTTON_PIN   8    // Digital IO pin connected to the button.
-#define LED_PIN      9    // Digital IO pin connected to the status LED.
+#define BUTTON_PIN   4    // Digital IO pin connected to the button.
+#define LED_PIN      5    // Digital IO pin connected to the status LED.
 
 #define STATE_INIT 0
 #define STATE_WAITING_FOR_BUTTON 1
@@ -65,8 +81,9 @@ Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
     prefixes!
 */
 // For a https:// url:
-char * url = "en.wikipedia.org/wiki/2312_%28novel%29";
-uint8_t ndefprefix = NDEF_URIPREFIX_HTTPS;
+char * url = "springfieldfiles.com/sounds/homer/woohoo.mp3";
+// uint8_t ndefprefix = NDEF_URIPREFIX_HTTPS;
+uint8_t ndefprefix = NDEF_URIPREFIX_HTTP;
 
 // for an email address
 //char * url = "mail@example.com";
@@ -97,7 +114,19 @@ void setup(void) {
     while (!Serial); // for Leonardo/Micro/Zero
   #endif
   Serial.begin(115200);
+  Serial.flush();
   Serial.println("Hello!");
+
+  // Set the max number of retry attempts to read from a card
+  // This prevents us from waiting forever for a card, which is
+  // the default behaviour of the PN532.
+  // nfc.setPassiveActivationRetries(0x99);
+
+#ifdef ESP8266
+  Serial.print("Using ESP8266");
+#else
+  Serial.print("Using Arduino");
+#endif
 
   nfc.begin();
 
@@ -280,5 +309,9 @@ void state_entry_waiting_for_tag()
         } // CC contents NDEF record check
       } // CC page read check
     } // UUID length check
+    state_entry_waiting_for_button();
   } // Start waiting for a new ISO14443A tag
+  else {
+    Serial.println("Failed to readPassiveTargetID");
+  }
 }
